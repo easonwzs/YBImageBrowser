@@ -33,5 +33,6 @@ Pod::Spec.new do |s|
 
   s.dependency 'SDWebImage', '~>5.0.0'
   s.dependency 'YYImage'
+  s.dependency 'YYWebImage'
 
 end
