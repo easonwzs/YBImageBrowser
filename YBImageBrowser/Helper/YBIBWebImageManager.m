@@ -7,10 +7,16 @@
 //
 
 #import "YBIBWebImageManager.h"
-#if __has_include(<SDWebImage/SDWebImage.h>)
-#import <SDWebImage/SDWebImage.h>
+//#if __has_include(<SDWebImage/SDWebImage.h>)
+//#import <SDWebImage/SDWebImage.h>
+//#else
+//#import "SDWebImage.h"
+//#endif
+
+#if __has_include(<YYWebImage/YYWebImage.h>)
+#import <YYWebImage/YYWebImage.h>
 #else
-#import "SDWebImage.h"
+#import "YYWebImage.h"
 #endif
 
 @implementation YBIBWebImageManager
@@ -20,50 +26,94 @@
 + (id)downloadImageWithURL:(NSURL *)url progress:(YBIBWebImageManagerProgressBlock)progress success:(YBIBWebImageManagerSuccessBlock)success failed:(YBIBWebImageManagerFailedBlock)failed {
     if (!url) return nil;
     
-    SDWebImageDownloaderOptions options = SDWebImageDownloaderLowPriority | SDWebImageDownloaderAvoidDecodeImage;
-    SDWebImageDownloadToken *token = [[SDWebImageDownloader sharedDownloader] downloadImageWithURL:url options:options progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+    YYWebImageOperation *operation = [[YYWebImageManager sharedManager]requestImageWithURL:url options:kNilOptions progress:^(NSInteger receivedSize, NSInteger expectedSize) {
         if (progress) {
-            progress(receivedSize, expectedSize, targetURL);
+            progress(receivedSize, expectedSize, url);
         }
-    } completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
+    } transform:nil completion:^(UIImage * _Nullable image, NSURL * _Nonnull url, YYWebImageFromType from, YYWebImageStage stage, NSError * _Nullable error) {
         if (error) {
-            if (failed) failed(error, finished);
-            return;
-        }
-        if (success) {
-            success(image, data, finished);
+            if (failed) failed(error, YES);
+        } else {
+            if (success) {
+                success(image, UIImagePNGRepresentation(image), YES);
+            }
         }
     }];
-    return token;
+    return operation;
+    
+    
+    //    SDWebImageDownloaderOptions options = SDWebImageDownloaderLowPriority | SDWebImageDownloaderAvoidDecodeImage;
+    //    SDWebImageDownloadToken *token = [[SDWebImageDownloader sharedDownloader] downloadImageWithURL:url options:options progress:^(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+    //        if (progress) {
+    //            progress(receivedSize, expectedSize, targetURL);
+    //        }
+    //    } completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
+    //        if (error) {
+    //            if (failed) failed(error, finished);
+    //            return;
+    //        }
+    //        if (success) {
+    //            success(image, data, finished);
+    //        }
+    //    }];
+    //    return token;
+    
+    
 }
 
 + (void)cancelTaskWithDownloadToken:(id)token {
-    if (token && [token isKindOfClass:SDWebImageDownloadToken.class]) {
-        [((SDWebImageDownloadToken *)token) cancel];
+    //    if (token && [token isKindOfClass:SDWebImageDownloadToken.class]) {
+    //        [((SDWebImageDownloadToken *)token) cancel];
+    //    }
+    
+    if (token && [token isKindOfClass:YYWebImageOperation.class]) {
+        [((YYWebImageOperation*)token) cancel];
     }
+    
 }
 
 + (void)storeImage:(UIImage *)image imageData:(NSData *)data forKey:(NSURL *)key toDisk:(BOOL)toDisk {
     if (!key) return;
-    NSString *cacheKey = [SDWebImageManager.sharedManager cacheKeyForURL:key];
-    if (!cacheKey) return;
     
-    [[SDImageCache sharedImageCache] storeImage:image imageData:data forKey:cacheKey toDisk:toDisk completion:nil];
+    NSString *cacheKey = [[YYWebImageManager sharedManager] cacheKeyForURL:key];
+    if (!cacheKey) return;
+    [[YYImageCache sharedCache] setImage:image imageData:data forKey:cacheKey withType:YYImageCacheTypeAll];
+    
+    
+    //    NSString *cacheKey = [SDWebImageManager.sharedManager cacheKeyForURL:key];
+    //    if (!cacheKey) return;
+    //
+    //    [[SDImageCache sharedImageCache] storeImage:image imageData:data forKey:cacheKey toDisk:toDisk completion:nil];
+    
 }
 
 + (void)queryCacheOperationForKey:(NSURL *)key completed:(YBIBWebImageManagerCacheQueryCompletedBlock)completed {
 #define QUERY_CACHE_FAILED if (completed) {completed(nil, nil); return;}
     if (!key) QUERY_CACHE_FAILED
-    NSString *cacheKey = [SDWebImageManager.sharedManager cacheKeyForURL:key];
-    if (!cacheKey) QUERY_CACHE_FAILED
+        
+        //    NSString *cacheKey = [SDWebImageManager.sharedManager cacheKeyForURL:key];
+        //    if (!cacheKey) QUERY_CACHE_FAILED
+        
+        NSString *yyCacheKey = [[YYWebImageManager sharedManager] cacheKeyForURL:key];
+    if (!yyCacheKey) QUERY_CACHE_FAILED
+        
 #undef QUERY_CACHE_FAILED
         
-    SDImageCacheOptions options = SDImageCacheQueryMemoryData | SDImageCacheAvoidDecodeImage;
-    [[SDImageCache sharedImageCache] queryCacheOperationForKey:cacheKey options:options done:^(UIImage * _Nullable image, NSData * _Nullable data, SDImageCacheType cacheType) {
-        if (completed) {
-            completed(image, data);
-        }
-    }];
+        
+        [[YYImageCache sharedCache] getImageForKey:yyCacheKey withType:YYImageCacheTypeAll withBlock:^(UIImage * _Nullable image, YYImageCacheType type) {
+            if (completed) {
+                completed(image, UIImagePNGRepresentation(image));
+            }
+        }];
+    
+    
+    //    SDImageCacheOptions options = SDImageCacheQueryMemoryData | SDImageCacheAvoidDecodeImage;
+    //    [[SDImageCache sharedImageCache] queryCacheOperationForKey:cacheKey options:options done:^(UIImage * _Nullable image, NSData * _Nullable data, SDImageCacheType cacheType) {
+    //        if (completed) {
+    //            completed(image, data);
+    //        }
+    //    }];
+    
 }
 
 @end
